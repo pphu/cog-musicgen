@@ -52,6 +52,18 @@ class Predictor(BasePredictor):
             model_id="facebook/musicgen-large",
         )
 
+        self.medium_model = self._load_model(
+            model_path=MODEL_PATH,
+            cls=MusicGen,
+            model_id="facebook/musicgen-medium",
+        )
+
+        self.small_model = self._load_model(
+            model_path=MODEL_PATH,
+            cls=MusicGen,
+            model_id="facebook/musicgen-small",
+        )
+
     def _load_model(
         self,
         model_path: str,
@@ -80,7 +92,7 @@ class Predictor(BasePredictor):
         model_version: str = Input(
             description="Model to use for generation. If set to 'encode-decode', the audio specified via 'input_audio' will simply be encoded and then decoded.",
             default="melody",
-            choices=["melody", "large", "encode-decode"],
+            choices=["melody", "large", "medium", "small", "encode-decode"],
         ),
         prompt: str = Input(
             description="A description of the music you want to generate.", default=None
@@ -141,12 +153,19 @@ class Predictor(BasePredictor):
             raise ValueError("Must provide either prompt or input_audio")
         if continuation and not input_audio:
             raise ValueError("Must provide `input_audio` if continuation is `True`.")
-        if model_version == "large" and input_audio and not continuation:
+        if (model_version == "large" or model == "medium" or model == "small") and input_audio and not continuation:
             raise ValueError(
                 "Large model does not support melody input. Set `model_version='melody'` to condition on audio input."
             )
 
-        model = self.melody_model if model_version == "melody" else self.large_model
+        if model_version == "melody":
+            model = self.melody_model
+        elif model_version == "large":
+            model = self.large_model
+        elif model_version == "medium":
+            model = self.medium_model
+        else:
+            model = self.small_model
 
         set_generation_params = lambda duration: model.set_generation_params(
             duration=duration,
